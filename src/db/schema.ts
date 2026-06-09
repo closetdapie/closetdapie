@@ -98,6 +98,10 @@ export const produtosCogs = pgTable('produtos_cogs', {
   custoUnitario: numeric('custo_unitario', { precision: 10, scale: 2 }).notNull(),
   precoVenda: numeric('preco_venda', { precision: 10, scale: 2 }),
   observacao: text('observacao'),
+  // Estoque (sincronizado do site público)
+  variantesDisponiveis: integer('variantes_disponiveis').default(0),
+  variantesTotal: integer('variantes_total').default(0),
+  disponivel: boolean('disponivel').default(false),
   atualizadoEm: timestamp('atualizado_em', { mode: 'date' }).notNull().defaultNow(),
 });
 
