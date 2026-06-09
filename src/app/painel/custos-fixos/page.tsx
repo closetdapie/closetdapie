@@ -2,8 +2,9 @@ import { db, custosFixos } from '@/db';
 import { desc, isNull } from 'drizzle-orm';
 import { formatBRL } from '@/lib/calcular-lucro';
 import { criarCustoFixo, encerrarCustoFixo, deletarCustoFixo } from '@/lib/despesas-actions';
-import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatInTimeZone } from 'date-fns-tz';
+const TZ = 'America/Sao_Paulo';
 import { Trash2, CircleStop } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
@@ -84,7 +85,7 @@ export default async function CustosFixosPage() {
                   <p className="text-xs text-[var(--color-ink-mute)] mt-0.5">
                     {CATEGORIAS.find((x) => x.v === c.categoria)?.l || c.categoria}
                     {c.diaCobranca && ` · cobra dia ${c.diaCobranca}`}
-                    {` · desde ${format(c.ativoDesde, "MMM yyyy", { locale: ptBR })}`}
+                    {` · desde ${formatInTimeZone(c.ativoDesde, TZ, "MMM yyyy", { locale: ptBR })}`}
                   </p>
                 </div>
                 <span className="font-mono font-semibold text-sm shrink-0">{formatBRL(c.valor)}/mês</span>

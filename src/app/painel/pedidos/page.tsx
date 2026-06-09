@@ -5,6 +5,8 @@ import { format,
   startOfDay, endOfDay, startOfWeek, endOfWeek, subDays,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatInTimeZone } from 'date-fns-tz';
+import { agoraBR, paraUTC, fmtBR, TZ } from '@/lib/timezone';
 import { Search, AlertCircle, ArrowUpRight, ArrowDownRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { Reveal } from '@/components/cinema/reveal';
@@ -14,34 +16,34 @@ export const dynamic = 'force-dynamic';
 type Periodo = 'hoje' | 'ontem' | '7dias' | 'semana' | 'mes' | 'mes_passado' | 'custom' | 'tudo';
 
 function resolverIntervalo(periodo: Periodo, inicioCustom?: string, fimCustom?: string): { inicio: Date | null; fim: Date | null; label: string } {
-  const agora = new Date();
+  const agoraBr = agoraBR();
   switch (periodo) {
     case 'hoje':
-      return { inicio: startOfDay(agora), fim: endOfDay(agora), label: 'Hoje' };
+      return { inicio: paraUTC(startOfDay(agoraBr)), fim: paraUTC(endOfDay(agoraBr)), label: 'Hoje' };
     case 'ontem': {
-      const o = subDays(agora, 1);
-      return { inicio: startOfDay(o), fim: endOfDay(o), label: 'Ontem' };
+      const o = subDays(agoraBr, 1);
+      return { inicio: paraUTC(startOfDay(o)), fim: paraUTC(endOfDay(o)), label: 'Ontem' };
     }
     case '7dias':
-      return { inicio: startOfDay(subDays(agora, 6)), fim: endOfDay(agora), label: 'Últimos 7 dias' };
+      return { inicio: paraUTC(startOfDay(subDays(agoraBr, 6))), fim: paraUTC(endOfDay(agoraBr)), label: 'Últimos 7 dias' };
     case 'semana':
-      return { inicio: startOfWeek(agora, { weekStartsOn: 1 }), fim: endOfWeek(agora, { weekStartsOn: 1 }), label: 'Esta semana' };
+      return { inicio: paraUTC(startOfWeek(agoraBr, { weekStartsOn: 1 })), fim: paraUTC(endOfWeek(agoraBr, { weekStartsOn: 1 })), label: 'Esta semana' };
     case 'mes_passado': {
-      const m = subMonths(agora, 1);
-      return { inicio: startOfMonth(m), fim: endOfMonth(m), label: format(m, "MMMM", { locale: ptBR }) };
+      const m = subMonths(agoraBr, 1);
+      return { inicio: paraUTC(startOfMonth(m)), fim: paraUTC(endOfMonth(m)), label: format(m, "MMMM", { locale: ptBR }) };
     }
     case 'custom':
       if (inicioCustom && fimCustom) {
-        const ini = startOfDay(new Date(inicioCustom + 'T00:00:00'));
-        const fim = endOfDay(new Date(fimCustom + 'T00:00:00'));
-        return { inicio: ini, fim, label: `${format(ini, 'dd/MM')} – ${format(fim, 'dd/MM')}` };
+        const ini = paraUTC(startOfDay(new Date(inicioCustom + 'T00:00:00')));
+        const fim = paraUTC(endOfDay(new Date(fimCustom + 'T00:00:00')));
+        return { inicio: ini, fim, label: `${fmtBR(ini, 'dd/MM')} – ${fmtBR(fim, 'dd/MM')}` };
       }
-      return { inicio: startOfMonth(agora), fim: endOfMonth(agora), label: format(agora, "MMMM", { locale: ptBR }) };
+      return { inicio: paraUTC(startOfMonth(agoraBr)), fim: paraUTC(endOfMonth(agoraBr)), label: format(agoraBr, "MMMM", { locale: ptBR }) };
     case 'tudo':
       return { inicio: null, fim: null, label: 'Tudo' };
     case 'mes':
     default:
-      return { inicio: startOfMonth(agora), fim: endOfMonth(agora), label: format(agora, "MMMM", { locale: ptBR }) };
+      return { inicio: paraUTC(startOfMonth(agoraBr)), fim: paraUTC(endOfMonth(agoraBr)), label: format(agoraBr, "MMMM", { locale: ptBR }) };
   }
 }
 
@@ -178,7 +180,7 @@ export default async function PedidosPage({
                       <tr key={p.id} className="hover:bg-[var(--color-surface-2)] transition-colors">
                         <td className="p-3 text-xs tabular text-[var(--color-ink-3)]">#{p.numero}</td>
                         <td className="p-3 text-xs text-[var(--color-ink-3)] whitespace-nowrap">
-                          {format(p.dataPedido, "dd MMM · HH:mm", { locale: ptBR })}
+                          {formatInTimeZone(p.dataPedido, TZ, "dd MMM · HH:mm", { locale: ptBR })}
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-2.5">

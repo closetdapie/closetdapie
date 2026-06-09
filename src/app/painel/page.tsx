@@ -5,6 +5,8 @@ import {
   startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, differenceInDays, eachDayOfInterval,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { agoraBR, paraUTC, fmtBR, TZ } from '@/lib/timezone';
+import { toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { BotaoSincronizar } from '@/components/botao-sincronizar';
 import { AnimatedBRL, AnimatedCounter } from '@/components/cinema/animated-counter';
@@ -20,33 +22,34 @@ export const dynamic = 'force-dynamic';
 
 type Periodo = 'hoje' | 'ontem' | '7dias' | 'semana' | 'mes' | 'mes_passado' | 'custom';
 
+// Tudo em horário BR (America/Sao_Paulo). Datas retornadas em UTC absoluto pra Drizzle.
 function resolverIntervalo(periodo: Periodo, inicioCustom?: string, fimCustom?: string): { inicio: Date; fim: Date; label: string } {
-  const agora = new Date();
+  const agoraBr = agoraBR();
   switch (periodo) {
     case 'hoje':
-      return { inicio: startOfDay(agora), fim: endOfDay(agora), label: 'Hoje' };
+      return { inicio: paraUTC(startOfDay(agoraBr)), fim: paraUTC(endOfDay(agoraBr)), label: 'Hoje' };
     case 'ontem': {
-      const o = subDays(agora, 1);
-      return { inicio: startOfDay(o), fim: endOfDay(o), label: 'Ontem' };
+      const o = subDays(agoraBr, 1);
+      return { inicio: paraUTC(startOfDay(o)), fim: paraUTC(endOfDay(o)), label: 'Ontem' };
     }
     case '7dias':
-      return { inicio: startOfDay(subDays(agora, 6)), fim: endOfDay(agora), label: 'Últimos 7 dias' };
+      return { inicio: paraUTC(startOfDay(subDays(agoraBr, 6))), fim: paraUTC(endOfDay(agoraBr)), label: 'Últimos 7 dias' };
     case 'semana':
-      return { inicio: startOfWeek(agora, { weekStartsOn: 1 }), fim: endOfWeek(agora, { weekStartsOn: 1 }), label: 'Esta semana' };
+      return { inicio: paraUTC(startOfWeek(agoraBr, { weekStartsOn: 1 })), fim: paraUTC(endOfWeek(agoraBr, { weekStartsOn: 1 })), label: 'Esta semana' };
     case 'mes_passado': {
-      const m = subMonths(agora, 1);
-      return { inicio: startOfMonth(m), fim: endOfMonth(m), label: format(m, "MMMM", { locale: ptBR }) };
+      const m = subMonths(agoraBr, 1);
+      return { inicio: paraUTC(startOfMonth(m)), fim: paraUTC(endOfMonth(m)), label: format(m, "MMMM", { locale: ptBR }) };
     }
     case 'custom':
       if (inicioCustom && fimCustom) {
-        const ini = startOfDay(new Date(inicioCustom + 'T00:00:00'));
-        const fim = endOfDay(new Date(fimCustom + 'T00:00:00'));
-        return { inicio: ini, fim, label: `${format(ini, 'dd/MM')} – ${format(fim, 'dd/MM')}` };
+        const ini = paraUTC(startOfDay(new Date(inicioCustom + 'T00:00:00')));
+        const fim = paraUTC(endOfDay(new Date(fimCustom + 'T00:00:00')));
+        return { inicio: ini, fim, label: `${fmtBR(ini, 'dd/MM')} – ${fmtBR(fim, 'dd/MM')}` };
       }
-      return { inicio: startOfMonth(agora), fim: endOfMonth(agora), label: format(agora, "MMMM", { locale: ptBR }) };
+      return { inicio: paraUTC(startOfMonth(agoraBr)), fim: paraUTC(endOfMonth(agoraBr)), label: format(agoraBr, "MMMM", { locale: ptBR }) };
     case 'mes':
     default:
-      return { inicio: startOfMonth(agora), fim: endOfMonth(agora), label: format(agora, "MMMM", { locale: ptBR }) };
+      return { inicio: paraUTC(startOfMonth(agoraBr)), fim: paraUTC(endOfMonth(agoraBr)), label: format(agoraBr, "MMMM", { locale: ptBR }) };
   }
 }
 
@@ -93,20 +96,24 @@ async function dadosDoIntervalo(inicio: Date, fim: Date) {
 }
 
 async function receitaPorDia(inicio: Date, fim: Date) {
+  // agrupa por dia EM TIMEZONE BR (não UTC)
   const rows = await db
     .select({
-      dia: sql<string>`DATE(${pedidos.dataPedido})`,
+      dia: sql<string>`DATE(${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`,
       total: sql<string>`COALESCE(SUM(${pedidos.total}), 0)`,
       lucro: sql<string>`COALESCE(SUM(${pedidos.lucroLiquido}), 0)`,
       qtd: sql<string>`COUNT(*)::int`,
     })
     .from(pedidos)
     .where(and(gte(pedidos.dataPedido, inicio), lte(pedidos.dataPedido, fim), sql`${pedidos.status} = 'paid'`))
-    .groupBy(sql`DATE(${pedidos.dataPedido})`)
-    .orderBy(sql`DATE(${pedidos.dataPedido})`);
+    .groupBy(sql`DATE(${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`)
+    .orderBy(sql`DATE(${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`);
 
   const mapa = new Map(rows.map((r) => [r.dia, r]));
-  const todosDias = eachDayOfInterval({ start: inicio, end: fim });
+  // gera dias em BR — converte cada Date pra wall-clock BR antes de gerar a sequência
+  const inicioBR = toZonedTime(inicio, TZ);
+  const fimBR = toZonedTime(fim, TZ);
+  const todosDias = eachDayOfInterval({ start: inicioBR, end: fimBR });
   return todosDias.map((d) => {
     const k = format(d, 'yyyy-MM-dd');
     const r = mapa.get(k);
@@ -122,18 +129,19 @@ async function receitaPorDia(inicio: Date, fim: Date) {
 }
 
 async function heatmapHoraDia(inicio: Date, fim: Date): Promise<CelulaHeatmap[]> {
+  // EXTRACT no horário BR (não UTC)
   const rows = await db
     .select({
-      dia: sql<string>`EXTRACT(ISODOW FROM ${pedidos.dataPedido})::int`, // 1=seg .. 7=dom
-      hora: sql<string>`EXTRACT(HOUR FROM ${pedidos.dataPedido})::int`,
+      dia: sql<string>`EXTRACT(ISODOW FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')::int`,
+      hora: sql<string>`EXTRACT(HOUR FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')::int`,
       total: sql<string>`COALESCE(SUM(${pedidos.total}), 0)`,
     })
     .from(pedidos)
     .where(and(gte(pedidos.dataPedido, inicio), lte(pedidos.dataPedido, fim), sql`${pedidos.status} = 'paid'`))
-    .groupBy(sql`EXTRACT(ISODOW FROM ${pedidos.dataPedido}), EXTRACT(HOUR FROM ${pedidos.dataPedido})`);
+    .groupBy(sql`EXTRACT(ISODOW FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo'), EXTRACT(HOUR FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`);
 
   return rows.map((r) => ({
-    diaSemana: Number(r.dia) - 1, // ISO: 1=seg→0
+    diaSemana: Number(r.dia) - 1,
     hora: Number(r.hora),
     valor: Number(r.total),
   }));

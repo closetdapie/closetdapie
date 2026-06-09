@@ -1,7 +1,8 @@
 import { db, despesas } from '@/db';
 import { desc } from 'drizzle-orm';
-import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatInTimeZone } from 'date-fns-tz';
+const TZ = 'America/Sao_Paulo';
 import { formatBRL } from '@/lib/calcular-lucro';
 import { criarDespesa, deletarDespesa } from '@/lib/despesas-actions';
 import { Trash2 } from 'lucide-react';
@@ -76,7 +77,7 @@ export default async function DespesasPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{d.descricao}</p>
                   <p className="text-xs text-[var(--color-ink-mute)] mt-0.5">
-                    {format(d.data, "dd MMM yyyy", { locale: ptBR })} ·{' '}
+                    {formatInTimeZone(d.data, TZ, "dd MMM yyyy", { locale: ptBR })} ·{' '}
                     {CATEGORIAS.find((c) => c.v === d.categoria)?.l || d.categoria}
                     {d.observacao && ` · ${d.observacao}`}
                   </p>

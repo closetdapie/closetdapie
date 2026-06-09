@@ -1,8 +1,9 @@
 import { db, produtosCogs, despesas } from '@/db';
 import { asc, eq, desc } from 'drizzle-orm';
 import { formatBRL } from '@/lib/calcular-lucro';
-import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { formatInTimeZone } from 'date-fns-tz';
+const TZ = 'America/Sao_Paulo';
 import { FormularioCompra } from '@/components/formulario-compra';
 
 export const dynamic = 'force-dynamic';
@@ -40,7 +41,7 @@ export default async function ComprasPage() {
                 <div>
                   <p className="font-medium text-sm">{c.descricao}</p>
                   <p className="text-xs text-[var(--color-ink-mute)] mt-0.5">
-                    {format(c.data, "dd MMM yyyy", { locale: ptBR })}
+                    {formatInTimeZone(c.data, TZ, "dd MMM yyyy", { locale: ptBR })}
                     {c.observacao && ` · ${c.observacao}`}
                   </p>
                 </div>
