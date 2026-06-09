@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react';
 import { RefreshCw, Check, AlertTriangle } from 'lucide-react';
+import { Magnetic } from '@/components/cinema/magnetic';
+import { motion, AnimatePresence } from 'motion/react';
 
 export function BotaoSincronizar() {
   const [pending, start] = useTransition();
@@ -27,16 +29,25 @@ export function BotaoSincronizar() {
 
   return (
     <div className="flex items-center gap-3">
-      <button onClick={sincronizar} disabled={pending} className="btn-ghost">
-        <RefreshCw className={`w-4 h-4 ${pending ? 'animate-spin' : ''}`} />
-        {pending ? 'Sincronizando...' : 'Sincronizar Nuvemshop'}
-      </button>
-      {msg && (
-        <span className={`flex items-center gap-1.5 text-xs ${msg.tipo === 'ok' ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-          {msg.tipo === 'ok' ? <Check className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
-          {msg.texto}
-        </span>
-      )}
+      <Magnetic strength={0.2}>
+        <button onClick={sincronizar} disabled={pending} className="btn-ghost">
+          <RefreshCw className={`w-3.5 h-3.5 ${pending ? 'animate-spin' : ''}`} />
+          {pending ? 'Sincronizando' : 'Sincronizar'}
+        </button>
+      </Magnetic>
+      <AnimatePresence>
+        {msg && (
+          <motion.span
+            initial={{ opacity: 0, x: -8 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -8 }}
+            className={`flex items-center gap-1.5 text-[11px] tracking-wider uppercase ${msg.tipo === 'ok' ? 'text-[var(--color-gain)]' : 'text-[var(--color-loss)]'}`}
+          >
+            {msg.tipo === 'ok' ? <Check className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+            {msg.texto}
+          </motion.span>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
