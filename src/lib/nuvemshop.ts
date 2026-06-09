@@ -4,9 +4,12 @@
 const BASE = 'https://api.tiendanube.com/v1';
 const UA = 'ClosetFinanceiro (closetdapie@gmail.com)';
 
-export async function fetchPedidos(storeId: string, token: string, since?: Date) {
+export async function fetchPedidos(storeId: string, token: string, since?: Date, opts: { porUpdated?: boolean } = {}) {
   const params = new URLSearchParams({ per_page: '50' });
-  if (since) params.set('created_at_min', since.toISOString());
+  if (since) {
+    // porUpdated=true pega criados OU editados desde a data — útil pra sync incremental
+    params.set(opts.porUpdated ? 'updated_at_min' : 'created_at_min', since.toISOString());
+  }
   const res = await fetch(`${BASE}/${storeId}/orders?${params}`, {
     headers: {
       'Authentication': `bearer ${token}`,

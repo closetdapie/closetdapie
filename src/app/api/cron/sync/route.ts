@@ -35,15 +35,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ erro: 'nuvemshop_nao_configurado' }, { status: 400 });
   }
 
-  // sync incremental: pega desde último pedido (com folga de 30min pra cobrir delay)
-  const ultimo = await db.query.pedidos.findFirst({ orderBy: (t) => desc(t.dataPedido) });
-  const desde = ultimo?.dataPedido
-    ? new Date(ultimo.dataPedido.getTime() - 30 * 60 * 1000)
-    : new Date(Date.now() - 1000 * 60 * 60 * 24 * 7);
+  // sync incremental: pega pedidos CRIADOS OU EDITADOS nas últimas horas
+  // (assim atualiza valor de pedidos que foram editados após o sync original)
+  const desde = new Date(Date.now() - 1000 * 60 * 60 * 6); // últimas 6 horas
 
   let novos;
   try {
-    novos = await fetchPedidos(cfg.nuvemshopStoreId, cfg.nuvemshopAccessToken, desde);
+    novos = await fetchPedidos(cfg.nuvemshopStoreId, cfg.nuvemshopAccessToken, desde, { porUpdated: true });
   } catch (e) {
     return NextResponse.json({ erro: 'nuvemshop_api', detalhe: String(e) }, { status: 502 });
   }

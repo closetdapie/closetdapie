@@ -99,15 +99,15 @@ async function receitaPorDia(inicio: Date, fim: Date) {
   // agrupa por dia EM TIMEZONE BR (não UTC)
   const rows = await db
     .select({
-      dia: sql<string>`DATE(${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`,
+      dia: sql<string>`DATE((${pedidos.dataPedido} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo')`,
       total: sql<string>`COALESCE(SUM(${pedidos.total}), 0)`,
       lucro: sql<string>`COALESCE(SUM(${pedidos.lucroLiquido}), 0)`,
       qtd: sql<string>`COUNT(*)::int`,
     })
     .from(pedidos)
     .where(and(gte(pedidos.dataPedido, inicio), lte(pedidos.dataPedido, fim), sql`${pedidos.status} = 'paid'`))
-    .groupBy(sql`DATE(${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`)
-    .orderBy(sql`DATE(${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`);
+    .groupBy(sql`DATE((${pedidos.dataPedido} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo')`)
+    .orderBy(sql`DATE((${pedidos.dataPedido} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo')`);
 
   const mapa = new Map(rows.map((r) => [r.dia, r]));
   // gera dias em BR — converte cada Date pra wall-clock BR antes de gerar a sequência
@@ -132,13 +132,13 @@ async function heatmapHoraDia(inicio: Date, fim: Date): Promise<CelulaHeatmap[]>
   // EXTRACT no horário BR (não UTC)
   const rows = await db
     .select({
-      dia: sql<string>`EXTRACT(ISODOW FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')::int`,
-      hora: sql<string>`EXTRACT(HOUR FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')::int`,
+      dia: sql<string>`EXTRACT(ISODOW FROM (${pedidos.dataPedido} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo')::int`,
+      hora: sql<string>`EXTRACT(HOUR FROM (${pedidos.dataPedido} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo')::int`,
       total: sql<string>`COALESCE(SUM(${pedidos.total}), 0)`,
     })
     .from(pedidos)
     .where(and(gte(pedidos.dataPedido, inicio), lte(pedidos.dataPedido, fim), sql`${pedidos.status} = 'paid'`))
-    .groupBy(sql`EXTRACT(ISODOW FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo'), EXTRACT(HOUR FROM ${pedidos.dataPedido} AT TIME ZONE 'America/Sao_Paulo')`);
+    .groupBy(sql`EXTRACT(ISODOW FROM (${pedidos.dataPedido} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo'), EXTRACT(HOUR FROM (${pedidos.dataPedido} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Sao_Paulo')`);
 
   return rows.map((r) => ({
     diaSemana: Number(r.dia) - 1,
