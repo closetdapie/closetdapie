@@ -22,7 +22,7 @@ type Pedido = {
   cliente: string;
   total: number;
   qtdItens: number;
-  meio: 'pix' | 'credit_card' | 'debit_card' | 'cash';
+  meio: 'pix' | 'credit_card' | 'debit_card' | 'cash' | 'boleto';
   gateway: 'nuvem_pago' | 'mercado_pago' | 'cash';
   status: 'paid' | 'cancelled' | 'refunded_partial';
 };
