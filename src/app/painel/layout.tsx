@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { auth, signOut } from '@/lib/auth';
-import { LayoutDashboard, Settings, Receipt, Package, Wallet, LogOut, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, Settings, Receipt, Package, Wallet, LogOut, ShoppingBag, ShoppingCart } from 'lucide-react';
 
 export default async function PainelLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -16,6 +16,7 @@ export default async function PainelLayout({ children }: { children: React.React
     { href: '/painel', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/painel/pedidos', label: 'Pedidos', icon: ShoppingBag },
     { href: '/painel/produtos', label: 'Produtos (COGS)', icon: Package },
+    { href: '/painel/compras', label: 'Compras de coleção', icon: ShoppingCart },
     { href: '/painel/despesas', label: 'Despesas', icon: Receipt },
     { href: '/painel/custos-fixos', label: 'Custos Fixos', icon: Wallet },
     { href: '/painel/configuracoes', label: 'Configurações', icon: Settings },
