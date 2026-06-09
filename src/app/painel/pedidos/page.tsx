@@ -114,19 +114,19 @@ export default async function PedidosPage({
   };
 
   return (
-    <div className="px-8 lg:px-10 py-7 max-w-[1400px] mx-auto">
+    <div className="px-4 sm:px-6 lg:px-10 py-5 lg:py-7 max-w-[1400px] mx-auto">
       {/* Header */}
-      <header className="mb-7">
+      <header className="mb-5 lg:mb-7">
         <p className="text-eyebrow mb-1">Vendas</p>
-        <h1 className="text-2xl font-bold tracking-tight text-[var(--color-ink)]">Pedidos</h1>
-        <p className="text-sm text-[var(--color-ink-3)] mt-1.5">
+        <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--color-ink)]">Pedidos</h1>
+        <p className="text-xs sm:text-sm text-[var(--color-ink-3)] mt-1.5">
           Cada pedido com cálculo de lucro real: taxa gateway + Nuvemshop + COGS + frete + embalagem.
         </p>
       </header>
 
       {/* Stats */}
       <Reveal>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-5">
           <StatCard label="Total" valor={totalNum.toLocaleString('pt-BR')} />
           <StatCard label="Pagos" valor={pagosNum.toLocaleString('pt-BR')} tom="gain" />
           <StatCard label="Cancelados" valor={canceladosNum.toLocaleString('pt-BR')} tom="loss" />
@@ -150,7 +150,60 @@ export default async function PedidosPage({
         </div>
       ) : (
         <Reveal delay={0.15}>
-          <div className="card-flush mt-5">
+          {/* MOBILE: lista de cards */}
+          <div className="space-y-2.5 mt-5 lg:hidden">
+            {lista.map((p) => {
+              const lucro = Number(p.lucroLiquido || 0);
+              const margem = Number(p.margemPercent || 0);
+              const cancelado = p.status === 'voided' || p.status === 'refunded' || p.status === 'cancelled';
+              return (
+                <div key={p.id} className="card" style={{ padding: '0.85rem 1rem' }}>
+                  <div className="flex items-start justify-between gap-3 mb-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <span className="w-9 h-9 rounded-full bg-[var(--color-blush-soft)] grid place-items-center text-[var(--color-blush-deep)] font-display text-xs leading-none shrink-0">
+                        {(p.clienteNome || '?').slice(0, 2).toUpperCase()}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold text-[var(--color-ink)] truncate">
+                          {p.clienteNome || '—'}
+                        </p>
+                        <p className="text-[10px] text-[var(--color-ink-4)] truncate">
+                          #{p.numero} · {formatInTimeZone(p.dataPedido, TZ, 'dd MMM HH:mm', { locale: ptBR })}
+                        </p>
+                      </div>
+                    </div>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-center mt-3 pt-3 border-t border-[var(--color-line)]">
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-[var(--color-ink-4)] mb-0.5">Total</p>
+                      <p className="font-display text-base text-[var(--color-ink)] tabular">{fmtMoeda(Number(p.total))}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-[var(--color-ink-4)] mb-0.5">Lucro</p>
+                      <p className={`font-display text-base tabular ${
+                        cancelado ? 'text-[var(--color-ink-4)]' :
+                        lucro >= 0 ? 'text-[var(--color-gain)]' : 'text-[var(--color-loss)]'
+                      }`}>{cancelado ? '—' : fmtMoeda(lucro)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[9px] uppercase tracking-wider text-[var(--color-ink-4)] mb-0.5">Margem</p>
+                      <p className={`font-display text-base tabular ${
+                        cancelado ? 'text-[var(--color-ink-4)]' :
+                        margem >= 35 ? 'text-[var(--color-gain)]' :
+                        margem >= 15 ? 'text-[var(--color-warn)]' :
+                        'text-[var(--color-loss)]'
+                      }`}>{cancelado ? '—' : `${margem.toFixed(0)}%`}</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-[var(--color-ink-4)] text-center mt-2">{p.meioPagamento || '—'}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* DESKTOP: tabela */}
+          <div className="card-flush mt-5 hidden lg:block">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

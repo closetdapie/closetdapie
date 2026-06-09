@@ -18,9 +18,9 @@ export default async function ComprasPage() {
   const ultimasCompras = await db.select().from(despesas).where(eq(despesas.categoria, 'estoque')).orderBy(desc(despesas.data)).limit(10);
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-5 lg:space-y-6 px-4 sm:px-6 lg:px-10 py-5 lg:py-7">
       <header>
-        <h1 className="text-2xl font-bold">Compra de coleção / mercadoria</h1>
+        <h1 className="text-xl lg:text-2xl font-bold">Compra de coleção / mercadoria</h1>
         <p className="text-sm text-[var(--color-ink-mute)] mt-1">
           Registre cada compra de produtos do fornecedor. Atualiza o custo (COGS) de cada peça e lança a despesa no caixa automaticamente.
         </p>

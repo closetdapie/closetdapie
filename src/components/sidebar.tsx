@@ -2,12 +2,12 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   LayoutDashboard, Settings, Receipt, Package, Wallet,
-  LogOut, ShoppingBag, ShoppingCart,
+  LogOut, ShoppingBag, ShoppingCart, Menu, X,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const NAV = [
   { href: '/painel', label: 'Dashboard', icon: LayoutDashboard, group: 'Visão' },
@@ -21,14 +21,26 @@ const NAV = [
 
 export function Sidebar({ sairAction }: { sairAction: (formData: FormData) => Promise<void> }) {
   const pathname = usePathname();
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [hover, setHover] = useState<string | null>(null);
+
+  // Fecha drawer ao trocar de rota
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  // Trava scroll quando drawer aberto
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
 
   const groups = Array.from(new Set(NAV.map((n) => n.group)));
 
-  return (
-    <aside className="w-[240px] shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-line)] flex flex-col">
+  const NavContent = (
+    <>
       {/* Brand */}
-      <div className="px-5 pt-6 pb-5 border-b border-[var(--color-line)]">
+      <div className="px-5 pt-6 pb-5 border-b border-[var(--color-line)] flex items-center justify-between">
         <Link href="/painel" className="flex items-center gap-2.5 group">
           <span className="w-8 h-8 rounded-lg bg-[var(--color-ink)] grid place-items-center transition-transform group-hover:scale-105">
             <span className="font-display text-white text-lg leading-none translate-y-px">C</span>
@@ -42,6 +54,15 @@ export function Sidebar({ sairAction }: { sairAction: (formData: FormData) => Pr
             </p>
           </span>
         </Link>
+        {/* Botão fechar (só mobile) */}
+        <button
+          type="button"
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden w-9 h-9 rounded-full grid place-items-center hover:bg-[var(--color-surface-2)] transition-colors"
+          aria-label="Fechar menu"
+        >
+          <X className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Nav */}
@@ -77,9 +98,7 @@ export function Sidebar({ sairAction }: { sairAction: (formData: FormData) => Pr
                           layoutId="sb-pill"
                           className="absolute inset-0 rounded-lg"
                           style={{
-                            background: active
-                              ? 'var(--color-surface-2)'
-                              : 'var(--color-surface-2)',
+                            background: 'var(--color-surface-2)',
                             border: active ? '1px solid var(--color-line-2)' : '1px solid var(--color-line)',
                           }}
                           transition={{ type: 'spring', stiffness: 380, damping: 32 }}
@@ -122,6 +141,60 @@ export function Sidebar({ sairAction }: { sairAction: (formData: FormData) => Pr
           </button>
         </form>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* TOP BAR MOBILE */}
+      <header className="lg:hidden sticky top-0 z-30 bg-[var(--color-surface)] border-b border-[var(--color-line)] px-4 py-3 flex items-center justify-between">
+        <Link href="/painel" className="flex items-center gap-2">
+          <span className="w-8 h-8 rounded-lg bg-[var(--color-ink)] grid place-items-center">
+            <span className="font-display text-white text-base leading-none translate-y-px">C</span>
+          </span>
+          <p className="font-display text-base tracking-wide text-[var(--color-ink)]">Closet</p>
+        </Link>
+        <button
+          type="button"
+          onClick={() => setMobileOpen(true)}
+          className="w-9 h-9 rounded-full grid place-items-center hover:bg-[var(--color-surface-2)] transition-colors"
+          aria-label="Abrir menu"
+        >
+          <Menu className="w-4 h-4" />
+        </button>
+      </header>
+
+      {/* SIDEBAR DESKTOP */}
+      <aside className="hidden lg:flex w-[240px] shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-line)] flex-col">
+        {NavContent}
+      </aside>
+
+      {/* DRAWER MOBILE */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <>
+            <motion.div
+              key="overlay"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={() => setMobileOpen(false)}
+              className="lg:hidden fixed inset-0 bg-[rgba(10,10,15,0.4)] backdrop-blur-sm z-40"
+            />
+            <motion.aside
+              key="drawer"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+              className="lg:hidden fixed top-0 bottom-0 left-0 w-[280px] bg-[var(--color-surface)] z-50 flex flex-col shadow-2xl"
+            >
+              {NavContent}
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

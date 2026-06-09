@@ -123,8 +123,9 @@ export const pedidos = pgTable('pedidos', {
   total: numeric('total', { precision: 10, scale: 2 }).notNull(),
 
   // Pagamento
-  meioPagamento: text('meio_pagamento'), // 'credit_card' | 'pix' | 'boleto' | 'debit_card'
+  meioPagamento: text('meio_pagamento'), // 'credit_card' | 'pix' | 'boleto' | 'debit_card' | 'cash'
   parcelas: integer('parcelas'),
+  gateway: text('gateway'), // 'nuvem_pago' | 'mercado_pago' | 'cash'
 
   // Calculados (cache pra dashboard rápido)
   taxaGateway: numeric('taxa_gateway', { precision: 10, scale: 2 }),

@@ -207,18 +207,18 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const dadosBar = serieDias.map((d) => ({ label: d.labelCurto, valor: d.receita }));
 
   return (
-    <div className="px-8 lg:px-10 py-7 max-w-[1400px] mx-auto">
+    <div className="px-4 sm:px-6 lg:px-10 py-5 lg:py-7 max-w-[1400px] mx-auto">
       {/* TOP BAR */}
-      <header className="flex items-center justify-between mb-7">
-        <div className="flex items-center gap-3">
-          <div>
-            <p className="text-eyebrow mb-0.5">Visão geral</p>
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-ink)]">
-              Olá, Pietra <span className="inline-block animate-wave">👋</span>
-            </h1>
-          </div>
+      <header className="flex items-center justify-between gap-3 mb-5 lg:mb-7">
+        <div className="min-w-0">
+          <p className="text-eyebrow mb-0.5">Visão geral</p>
+          <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-[var(--color-ink)] truncate">
+            Olá, Pietra <span className="inline-block animate-wave">👋</span>
+          </h1>
         </div>
-        <BotaoSincronizar />
+        <div className="shrink-0">
+          <BotaoSincronizar />
+        </div>
       </header>
 
       {/* PERIOD FILTER */}
@@ -228,30 +228,29 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
 
       {/* HERO LUCRO REAL */}
       <Reveal delay={0.15}>
-        <div className="card mt-5 relative overflow-hidden card-hover">
-          {/* decorative gradient corner */}
+        <div className="card mt-5 relative overflow-hidden card-hover" style={{ padding: '1.25rem' }}>
           <div className="absolute -top-32 -right-32 w-72 h-72 rounded-full opacity-40 pointer-events-none"
                style={{ background: 'radial-gradient(circle, rgba(245,224,228,0.8) 0%, transparent 70%)' }} />
-          <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
-            <div>
+          <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-5">
+            <div className="min-w-0">
               <p className="text-eyebrow mb-2">Lucro líquido real · {intervalo.label}</p>
-              <div className="flex items-baseline gap-4 flex-wrap">
-                <p className="font-display text-[clamp(3.5rem,8vw,6rem)] leading-[0.85] tabular text-[var(--color-ink)]">
+              <div className="flex items-baseline gap-3 flex-wrap">
+                <p className="font-display text-[clamp(2.8rem,9vw,6rem)] leading-[0.85] tabular text-[var(--color-ink)]">
                   <AnimatedBRL value={lucroReal} />
                 </p>
                 {lucroAnterior !== 0 && (
                   <span className={`pill ${variacao >= 0 ? 'pill-gain' : 'pill-loss'}`}>
                     {variacao >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {Math.abs(variacao).toFixed(0)}% vs período anterior
+                    {Math.abs(variacao).toFixed(0)}%
                   </span>
                 )}
               </div>
-              <p className="text-sm text-[var(--color-ink-3)] mt-3">
-                Margem de <strong className="text-[var(--color-ink)]"><AnimatedCounter value={margemReal} decimals={1} suffix="%" /></strong> sobre R$ <AnimatedCounter value={atual.receita / 1000} decimals={1} suffix="k" /> de faturamento em <strong className="text-[var(--color-ink)]">{atual.qtd}</strong> pedido{atual.qtd !== 1 ? 's' : ''}.
+              <p className="text-xs sm:text-sm text-[var(--color-ink-3)] mt-3">
+                Margem de <strong className="text-[var(--color-ink)]"><AnimatedCounter value={margemReal} decimals={1} suffix="%" /></strong> sobre R$ <AnimatedCounter value={atual.receita / 1000} decimals={1} suffix="k" /> em <strong className="text-[var(--color-ink)]">{atual.qtd}</strong> pedido{atual.qtd !== 1 ? 's' : ''}.
               </p>
             </div>
-            <div className="lg:w-[380px]">
-              <Sparkline dados={sparkLucro} width={380} height={80} cor="#B25667" />
+            <div className="lg:w-[380px] w-full">
+              <Sparkline dados={sparkLucro} width={380} height={70} cor="#B25667" />
               <div className="flex justify-between text-[10px] text-[var(--color-ink-4)] tracking-wider uppercase mt-1">
                 <span>{serieDias[0]?.label}</span>
                 <span>{serieDias[serieDias.length - 1]?.label}</span>
@@ -406,7 +405,7 @@ function FiltrosPeriodo({ periodo, inicioCustom, fimCustom }: { periodo: Periodo
   ];
 
   return (
-    <div className="card flex flex-col lg:flex-row gap-3 items-start lg:items-center" style={{ padding: '0.9rem 1.1rem' }}>
+    <div className="card flex flex-col lg:flex-row gap-3 items-stretch lg:items-center" style={{ padding: '0.9rem 1.1rem' }}>
       <div className="flex flex-wrap gap-1.5">
         {opcoes.map((o) => (
           <Link key={o.v} href={`/painel?periodo=${o.v}`} className={`pill ${periodo === o.v ? 'pill-active' : ''} hover:bg-[var(--color-surface-2)] transition-colors`}>
@@ -415,21 +414,21 @@ function FiltrosPeriodo({ periodo, inicioCustom, fimCustom }: { periodo: Periodo
         ))}
       </div>
 
-      <form action="/painel" method="get" className="flex items-center gap-2 lg:ml-auto">
+      <form action="/painel" method="get" className="flex items-center gap-1.5 lg:gap-2 lg:ml-auto flex-wrap">
         <input type="hidden" name="periodo" value="custom" />
         <input
           name="inicio"
           type="date"
           defaultValue={inicioCustom || ''}
-          className="input text-[11px] py-1.5 w-32"
+          className="input text-[11px] py-1.5 w-[120px] sm:w-32 flex-1 sm:flex-initial"
           aria-label="Início"
         />
-        <span className="text-[10px] text-[var(--color-ink-4)] uppercase tracking-wider">até</span>
+        <span className="text-[10px] text-[var(--color-ink-4)] uppercase tracking-wider hidden sm:inline">até</span>
         <input
           name="fim"
           type="date"
           defaultValue={fimCustom || ''}
-          className="input text-[11px] py-1.5 w-32"
+          className="input text-[11px] py-1.5 w-[120px] sm:w-32 flex-1 sm:flex-initial"
           aria-label="Fim"
         />
         <button type="submit" className="btn-ghost text-[11px] py-1.5 px-3">Aplicar</button>

@@ -20,30 +20,30 @@ export default async function EntrarPage() {
       <div className="absolute inset-0 grid-bg-light pointer-events-none" style={{ maskImage: 'radial-gradient(ellipse at center, #000 0%, transparent 75%)' }} />
 
       {/* Top bar */}
-      <header className="relative z-10 px-8 py-6 flex items-center justify-between">
+      <header className="relative z-10 px-4 sm:px-8 py-5 sm:py-6 flex items-center justify-between">
         <span className="flex items-center gap-2.5">
           <span className="w-7 h-7 rounded-lg bg-[var(--color-ink)] grid place-items-center">
             <span className="font-display text-white text-base leading-none translate-y-px">C</span>
           </span>
-          <span className="font-display text-lg tracking-wide">CLOSET FINANCEIRO</span>
+          <span className="font-display text-base sm:text-lg tracking-wide">CLOSET FINANCEIRO</span>
         </span>
         <span className="text-eyebrow tabular hidden md:inline">v 1.0 · 2026</span>
       </header>
 
       {/* Centro */}
-      <section className="relative z-10 grid place-items-center px-6 py-20">
-        <Reveal delay={0.1}>
-          <div className="card max-w-md w-full" style={{ padding: '2.4rem 2.2rem' }}>
-            <div className="mb-7">
-              <span className="pill mb-5">
+      <section className="relative z-10 grid place-items-center px-4 sm:px-6 py-10 sm:py-20">
+        <Reveal delay={0.1} className="w-full max-w-md">
+          <div className="card w-full" style={{ padding: '1.8rem 1.5rem' }}>
+            <div className="mb-6 sm:mb-7">
+              <span className="pill mb-4 sm:mb-5">
                 <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-gain)] animate-pulse" />
                 Online
               </span>
-              <h1 className="text-hero mt-3 mb-2 leading-none">
+              <h1 className="text-[clamp(2rem,8vw,3.5rem)] font-display leading-[0.95] mt-3 mb-2">
                 Bem-vinda,<br />
                 <span style={{ color: 'var(--color-blush-ink)' }}>Pietra</span>
               </h1>
-              <p className="text-sm text-[var(--color-ink-3)] leading-relaxed mt-3">
+              <p className="text-xs sm:text-sm text-[var(--color-ink-3)] leading-relaxed mt-3">
                 Veja agora quanto você <strong className="text-[var(--color-ink)]">realmente lucrou</strong> esse mês —
                 sem precisar adivinhar.
               </p>

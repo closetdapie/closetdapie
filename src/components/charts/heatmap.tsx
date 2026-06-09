@@ -50,16 +50,16 @@ export function HeatmapCalendar({ dados, className = '' }: Props) {
 
   return (
     <div ref={ref} className={className}>
-      <div className="flex">
+      <div className="flex overflow-x-auto no-scrollbar">
         {/* Coluna de labels Y (horas) */}
-        <div className="flex flex-col justify-around pr-2 pt-5 pb-1 text-[10px] tabular text-[var(--color-ink-4)] tracking-wide" style={{ height: 280 }}>
+        <div className="flex flex-col justify-around pr-2 pt-5 pb-1 text-[10px] tabular text-[var(--color-ink-4)] tracking-wide shrink-0" style={{ height: 280 }}>
           {BUCKETS.map((b) => (
             <span key={b}>{b}</span>
           ))}
         </div>
 
         {/* Grid */}
-        <div className="flex-1 grid grid-cols-7 gap-1.5">
+        <div className="flex-1 grid grid-cols-7 gap-1.5 min-w-[340px]">
           {DIAS.map((dia, diaIdx) => (
             <div key={dia} className="flex flex-col gap-1.5">
               <span className="text-[10px] uppercase tracking-wider text-[var(--color-ink-3)] font-semibold text-center mb-0.5">

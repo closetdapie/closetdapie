@@ -23,9 +23,9 @@ export default async function DespesasPage() {
   const lista = await db.select().from(despesas).orderBy(desc(despesas.data)).limit(50);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-5 lg:space-y-6 px-4 sm:px-6 lg:px-10 py-5 lg:py-7">
       <header>
-        <h1 className="text-2xl font-bold">Despesas pontuais</h1>
+        <h1 className="text-xl lg:text-2xl font-bold">Despesas pontuais</h1>
         <p className="text-sm text-[var(--color-ink-mute)] mt-1">
           Tudo que sair do caixa que não é recorrente (ads, coleção, parceria, etc.)
         </p>

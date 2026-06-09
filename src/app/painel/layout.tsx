@@ -12,7 +12,7 @@ export default async function PainelLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="flex min-h-screen bg-[var(--color-canvas)]">
+    <div className="flex flex-col lg:flex-row min-h-screen bg-[var(--color-canvas)]">
       <Sidebar sairAction={sair} />
       <main className="flex-1 overflow-x-auto">{children}</main>
     </div>

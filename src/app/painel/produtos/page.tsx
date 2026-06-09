@@ -57,9 +57,9 @@ export default async function ProdutosPage({ searchParams }: { searchParams: Pro
   const linkPag = (p: number) => `/painel/produtos?q=${encodeURIComponent(q)}&filtro=${filtro}&pp=${porPagina}&pag=${p}`;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-5 lg:space-y-6 px-4 sm:px-6 lg:px-10 py-5 lg:py-7">
       <header>
-        <h1 className="text-2xl font-bold">Produtos — Custo (COGS)</h1>
+        <h1 className="text-xl lg:text-2xl font-bold">Produtos — Custo (COGS)</h1>
         <p className="text-sm text-[var(--color-ink-mute)] mt-1">
           {totalNum} produtos sincronizados da Nuvemshop. {disponiveisNum} em estoque, {totalNum - disponiveisNum} esgotados.
         </p>
