@@ -12,8 +12,8 @@ type Props = {
   formatY?: (v: number) => string;
 };
 
-// Line chart claro premium — path animado + area gradient + tooltip
-export function LineChart({
+// BAR CHART premium estilo Stripe — barras gradient rounded top, animação stagger
+export function BarChart({
   dados,
   altura = 280,
   className = '',
@@ -46,36 +46,27 @@ export function LineChart({
   const innerW = w - padding.left - padding.right;
   const innerH = altura - padding.top - padding.bottom;
 
-  const max = Math.max(...dados.map((d) => d.valor)) * 1.05;
+  const max = Math.max(...dados.map((d) => d.valor)) * 1.1;
   const min = 0;
 
-  const xPos = (i: number) =>
-    padding.left + (dados.length === 1 ? innerW / 2 : (i / (dados.length - 1)) * innerW);
-  const yPos = (v: number) =>
-    padding.top + innerH - ((v - min) / (max - min || 1)) * innerH;
+  // largura da barra (com gap)
+  const gap = 8;
+  const barW = Math.max(8, (innerW - gap * (dados.length - 1)) / dados.length);
 
-  const pathD = dados
-    .map((d, i) => {
-      const x = xPos(i);
-      const y = yPos(d.valor);
-      if (i === 0) return `M ${x},${y}`;
-      const prevX = xPos(i - 1);
-      const cx1 = prevX + (x - prevX) / 2;
-      const cx2 = prevX + (x - prevX) / 2;
-      return `C ${cx1},${yPos(dados[i - 1].valor)} ${cx2},${y} ${x},${y}`;
-    })
-    .join(' ');
-
-  const areaD = `${pathD} L ${xPos(dados.length - 1)},${padding.top + innerH} L ${xPos(0)},${padding.top + innerH} Z`;
+  // Y ticks
   const yTicks = [0, 0.25, 0.5, 0.75, 1].map((t) => min + t * (max - min));
 
   return (
     <div className={`relative w-full ${className}`}>
       <svg ref={ref} width="100%" height={altura} viewBox={`0 0 ${w} ${altura}`} className="overflow-visible">
         <defs>
-          <linearGradient id="line-area-light" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#0A0A0F" stopOpacity="0.12" />
-            <stop offset="100%" stopColor="#0A0A0F" stopOpacity="0" />
+          <linearGradient id="bar-grad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#0A0A0F" />
+            <stop offset="100%" stopColor="#3A3A44" />
+          </linearGradient>
+          <linearGradient id="bar-grad-hover" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#B25667" />
+            <stop offset="100%" stopColor="#8C3A4A" />
           </linearGradient>
         </defs>
 
@@ -84,15 +75,15 @@ export function LineChart({
           <g key={i}>
             <line
               x1={padding.left}
-              y1={yPos(v)}
+              y1={padding.top + innerH - ((v - min) / (max - min)) * innerH}
               x2={w - padding.right}
-              y2={yPos(v)}
+              y2={padding.top + innerH - ((v - min) / (max - min)) * innerH}
               stroke="rgba(10,10,15,0.05)"
               strokeWidth={1}
             />
             <text
               x={padding.left - 10}
-              y={yPos(v) + 3.5}
+              y={padding.top + innerH - ((v - min) / (max - min)) * innerH + 3.5}
               fill="var(--color-ink-4)"
               fontSize="10"
               fontFamily="Inter, sans-serif"
@@ -105,49 +96,40 @@ export function LineChart({
           </g>
         ))}
 
-        <motion.path
-          d={areaD}
-          fill="url(#line-area-light)"
-          initial={{ opacity: 0 }}
-          animate={inView ? { opacity: 1 } : {}}
-          transition={{ duration: 1.4, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
-        />
-        <motion.path
-          d={pathD}
-          fill="none"
-          stroke="#0A0A0F"
-          strokeWidth={2}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          initial={{ pathLength: 0 }}
-          animate={inView ? { pathLength: 1 } : {}}
-          transition={{ duration: 1.6, ease: [0.16, 1, 0.3, 1] }}
-        />
-
-        {/* Pontos */}
+        {/* Bars */}
         {dados.map((d, i) => {
-          const cx = xPos(i);
-          const cy = yPos(d.valor);
+          const x = padding.left + i * (barW + gap);
+          const h = max > 0 ? ((d.valor - min) / (max - min)) * innerH : 0;
+          const y = padding.top + innerH - h;
           const ativo = hover === i;
           return (
             <motion.g
               key={i}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={inView ? { opacity: 1, scale: 1 } : {}}
-              transition={{ duration: 0.5, delay: 1 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+              initial={{ y: 30, opacity: 0 }}
+              animate={inView ? { y: 0, opacity: 1 } : {}}
+              transition={{ duration: 0.7, delay: 0.1 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
             >
+              {/* hit area maior */}
               <rect
-                x={cx - 25}
+                x={x - gap / 2}
                 y={padding.top}
-                width={50}
+                width={barW + gap}
                 height={innerH}
                 fill="transparent"
                 onMouseEnter={() => setHover(i)}
                 onMouseLeave={() => setHover(null)}
                 style={{ cursor: 'pointer' }}
               />
-              {ativo && <circle cx={cx} cy={cy} r={10} fill="rgba(10,10,15,0.08)" />}
-              <circle cx={cx} cy={cy} r={ativo ? 4.5 : 3} fill="#FFFFFF" stroke="#0A0A0F" strokeWidth={ativo ? 2.5 : 2} />
+              <motion.rect
+                x={x}
+                y={y}
+                width={barW}
+                height={h}
+                rx={Math.min(barW / 2, 5)}
+                fill={ativo ? 'url(#bar-grad-hover)' : 'url(#bar-grad)'}
+                animate={{ opacity: ativo ? 1 : 0.92 }}
+                transition={{ duration: 0.25 }}
+              />
             </motion.g>
           );
         })}
@@ -155,11 +137,12 @@ export function LineChart({
         {/* Labels X */}
         {dados.map((d, i) => {
           const showAll = dados.length <= 14;
-          if (!showAll && i % 2 !== 0 && i !== dados.length - 1) return null;
+          if (!showAll && i % 2 !== 0 && i !== dados.length - 1 && i !== 0) return null;
+          const x = padding.left + i * (barW + gap) + barW / 2;
           return (
             <text
               key={i}
-              x={xPos(i)}
+              x={x}
               y={altura - padding.bottom + 22}
               fill="var(--color-ink-4)"
               fontSize="10"
@@ -175,17 +158,8 @@ export function LineChart({
 
         {/* Tooltip */}
         {hover !== null && (
-          <motion.g initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            <line
-              x1={xPos(hover)}
-              y1={padding.top}
-              x2={xPos(hover)}
-              y2={padding.top + innerH}
-              stroke="rgba(10,10,15,0.15)"
-              strokeWidth={1}
-              strokeDasharray="2 3"
-            />
-            <g transform={`translate(${Math.min(xPos(hover) + 12, w - 150)}, ${Math.max(yPos(dados[hover].valor) - 50, padding.top)})`}>
+          <motion.g initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }}>
+            <g transform={`translate(${Math.min(padding.left + hover * (barW + gap) + barW / 2 - 70, w - 150)}, ${Math.max(padding.top + innerH - ((dados[hover].valor - min) / (max - min)) * innerH - 56, 0)})`}>
               <rect
                 x={0}
                 y={0}

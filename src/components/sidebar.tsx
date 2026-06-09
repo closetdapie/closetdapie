@@ -10,91 +10,118 @@ import {
 import { useState } from 'react';
 
 const NAV = [
-  { href: '/painel', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/painel/pedidos', label: 'Pedidos', icon: ShoppingBag },
-  { href: '/painel/produtos', label: 'Produtos', icon: Package },
-  { href: '/painel/compras', label: 'Compras', icon: ShoppingCart },
-  { href: '/painel/despesas', label: 'Despesas', icon: Receipt },
-  { href: '/painel/custos-fixos', label: 'Custos Fixos', icon: Wallet },
-  { href: '/painel/configuracoes', label: 'Configurações', icon: Settings },
+  { href: '/painel', label: 'Dashboard', icon: LayoutDashboard, group: 'Visão' },
+  { href: '/painel/pedidos', label: 'Pedidos', icon: ShoppingBag, group: 'Vendas' },
+  { href: '/painel/produtos', label: 'Produtos', icon: Package, group: 'Vendas' },
+  { href: '/painel/compras', label: 'Compras', icon: ShoppingCart, group: 'Caixa' },
+  { href: '/painel/despesas', label: 'Despesas', icon: Receipt, group: 'Caixa' },
+  { href: '/painel/custos-fixos', label: 'Custos fixos', icon: Wallet, group: 'Caixa' },
+  { href: '/painel/configuracoes', label: 'Configurações', icon: Settings, group: 'Ajustes' },
 ];
 
 export function Sidebar({ sairAction }: { sairAction: (formData: FormData) => Promise<void> }) {
   const pathname = usePathname();
   const [hover, setHover] = useState<string | null>(null);
 
+  const groups = Array.from(new Set(NAV.map((n) => n.group)));
+
   return (
-    <aside className="w-[260px] shrink-0 border-r border-[rgba(229,228,226,0.08)] bg-gradient-to-b from-[rgba(11,11,14,0.7)] to-[rgba(5,5,7,0.7)] backdrop-blur-xl flex flex-col">
+    <aside className="w-[240px] shrink-0 bg-[var(--color-surface)] border-r border-[var(--color-line)] flex flex-col">
       {/* Brand */}
-      <div className="px-7 pt-8 pb-7 border-b border-[rgba(229,228,226,0.06)]">
-        <Link href="/painel" className="block group">
-          <p className="text-eyebrow mb-1.5 transition-opacity group-hover:opacity-100" style={{ opacity: 0.6 }}>
-            Pietra · Admin
-          </p>
-          <h1 className="font-display text-3xl tracking-tight text-[var(--color-pearl)] leading-none">
-            CLOSET
-            <br />
-            FINANCEIRO
-          </h1>
+      <div className="px-5 pt-6 pb-5 border-b border-[var(--color-line)]">
+        <Link href="/painel" className="flex items-center gap-2.5 group">
+          <span className="w-8 h-8 rounded-lg bg-[var(--color-ink)] grid place-items-center transition-transform group-hover:scale-105">
+            <span className="font-display text-white text-lg leading-none translate-y-px">C</span>
+          </span>
+          <span>
+            <p className="font-display text-base tracking-wide leading-tight text-[var(--color-ink)]">
+              Closet
+            </p>
+            <p className="text-[10px] uppercase tracking-[0.18em] text-[var(--color-ink-3)] leading-none font-semibold mt-0.5">
+              Financeiro
+            </p>
+          </span>
         </Link>
       </div>
 
       {/* Nav */}
       <nav
-        className="flex-1 py-5 px-3.5 space-y-0.5 relative"
+        className="flex-1 py-4 px-3 overflow-y-auto"
         onMouseLeave={() => setHover(null)}
       >
-        {NAV.map((item) => {
-          const Icon = item.icon;
-          const active = pathname === item.href;
-          const isHovered = hover === item.href;
+        {groups.map((group, gi) => {
+          const items = NAV.filter((n) => n.group === group);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onMouseEnter={() => setHover(item.href)}
-              className="relative flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[13px] font-medium tracking-wide"
-              style={{
-                color: active ? 'var(--color-snow)' : 'var(--color-steel)',
-                transition: 'color 0.4s cubic-bezier(0.16,1,0.3,1)',
-              }}
-            >
-              {/* highlight pill animado */}
-              {(active || isHovered) && (
-                <motion.span
-                  layoutId="sidebar-pill"
-                  className="absolute inset-0 rounded-lg"
-                  style={{
-                    background: active
-                      ? 'linear-gradient(135deg, rgba(229,228,226,0.13), rgba(229,228,226,0.04))'
-                      : 'rgba(229,228,226,0.05)',
-                    border: active ? '1px solid rgba(229,228,226,0.15)' : '1px solid transparent',
-                  }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-                />
-              )}
-              <Icon className="w-4 h-4 relative z-10" />
-              <span className="relative z-10">{item.label}</span>
-              {active && (
-                <motion.span
-                  className="ml-auto w-1 h-1 rounded-full bg-[var(--color-platinum)] relative z-10"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
-                />
-              )}
-            </Link>
+            <div key={group} className={gi > 0 ? 'mt-4' : ''}>
+              <p className="px-3 mb-1.5 text-[10px] uppercase tracking-[0.18em] font-semibold text-[var(--color-ink-4)]">
+                {group}
+              </p>
+              <div className="space-y-0.5">
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  const active = pathname === item.href;
+                  const isHovered = hover === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onMouseEnter={() => setHover(item.href)}
+                      className="relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium tracking-tight"
+                      style={{
+                        color: active ? 'var(--color-ink)' : 'var(--color-ink-2)',
+                        transition: 'color 0.25s cubic-bezier(0.16,1,0.3,1)',
+                      }}
+                    >
+                      {(active || isHovered) && (
+                        <motion.span
+                          layoutId="sb-pill"
+                          className="absolute inset-0 rounded-lg"
+                          style={{
+                            background: active
+                              ? 'var(--color-surface-2)'
+                              : 'var(--color-surface-2)',
+                            border: active ? '1px solid var(--color-line-2)' : '1px solid var(--color-line)',
+                          }}
+                          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                        />
+                      )}
+                      <Icon className="w-4 h-4 relative z-10 shrink-0" />
+                      <span className="relative z-10 truncate">{item.label}</span>
+                      {active && (
+                        <motion.span
+                          className="ml-auto w-1 h-1 rounded-full bg-[var(--color-blush-ink)] relative z-10"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                        />
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>
 
-      {/* Sair */}
-      <form action={sairAction} className="px-3.5 pb-6 pt-4 border-t border-[rgba(229,228,226,0.06)]">
-        <button className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-[12px] text-[var(--color-iron)] hover:text-[var(--color-pearl)] tracking-wide transition-colors">
-          <LogOut className="w-3.5 h-3.5" />
-          Sair
-        </button>
-      </form>
+      {/* Profile + Sair */}
+      <div className="px-3 pb-4 pt-3 border-t border-[var(--color-line)]">
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg mb-1">
+          <span className="w-7 h-7 rounded-full bg-[var(--color-blush)] grid place-items-center text-[var(--color-blush-deep)] font-display text-sm leading-none">
+            P
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12px] font-semibold text-[var(--color-ink)] truncate leading-tight">Pietra</p>
+            <p className="text-[10px] text-[var(--color-ink-4)] truncate">closetdapie@gmail.com</p>
+          </div>
+        </div>
+        <form action={sairAction}>
+          <button className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-[12px] text-[var(--color-ink-3)] hover:text-[var(--color-ink)] hover:bg-[var(--color-surface-2)] transition-colors">
+            <LogOut className="w-3.5 h-3.5" />
+            Sair
+          </button>
+        </form>
+      </div>
     </aside>
   );
 }

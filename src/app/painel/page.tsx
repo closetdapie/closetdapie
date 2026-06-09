@@ -1,17 +1,19 @@
 import { db, pedidos, custosFixos, despesas } from '@/db';
-import { gte, lte, and, sql } from 'drizzle-orm';
+import { gte, lte, and, sql, desc } from 'drizzle-orm';
 import {
   startOfMonth, endOfMonth, subMonths, format,
   startOfDay, endOfDay, startOfWeek, endOfWeek, subDays, differenceInDays, eachDayOfInterval,
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { TrendingUp, TrendingDown, Calendar } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { BotaoSincronizar } from '@/components/botao-sincronizar';
 import { AnimatedBRL, AnimatedCounter } from '@/components/cinema/animated-counter';
 import { Reveal, RevealStagger, RevealItem } from '@/components/cinema/reveal';
-import { SplitText, SplitChars } from '@/components/cinema/split-text';
-import { LineChart } from '@/components/charts/line-chart';
+import { Sparkline } from '@/components/charts/sparkline';
+import { BarChart } from '@/components/charts/bar-chart';
 import { DonutChart } from '@/components/charts/donut-chart';
+import { HeatmapCalendar, type CelulaHeatmap } from '@/components/charts/heatmap';
+import { RecentPedidos } from '@/components/painel/recent-pedidos';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -95,19 +97,64 @@ async function receitaPorDia(inicio: Date, fim: Date) {
     .select({
       dia: sql<string>`DATE(${pedidos.dataPedido})`,
       total: sql<string>`COALESCE(SUM(${pedidos.total}), 0)`,
+      lucro: sql<string>`COALESCE(SUM(${pedidos.lucroLiquido}), 0)`,
+      qtd: sql<string>`COUNT(*)::int`,
     })
     .from(pedidos)
     .where(and(gte(pedidos.dataPedido, inicio), lte(pedidos.dataPedido, fim), sql`${pedidos.status} = 'paid'`))
     .groupBy(sql`DATE(${pedidos.dataPedido})`)
     .orderBy(sql`DATE(${pedidos.dataPedido})`);
 
-  // preenche dias sem vendas
-  const mapa = new Map(rows.map((r) => [r.dia, Number(r.total)]));
+  const mapa = new Map(rows.map((r) => [r.dia, r]));
   const todosDias = eachDayOfInterval({ start: inicio, end: fim });
-  return todosDias.map((d) => ({
-    label: format(d, 'dd/MM'),
-    valor: mapa.get(format(d, 'yyyy-MM-dd')) ?? 0,
+  return todosDias.map((d) => {
+    const k = format(d, 'yyyy-MM-dd');
+    const r = mapa.get(k);
+    return {
+      data: d,
+      label: format(d, 'dd/MM'),
+      labelCurto: format(d, 'dd'),
+      receita: r ? Number(r.total) : 0,
+      lucro: r ? Number(r.lucro) : 0,
+      qtd: r ? Number(r.qtd) : 0,
+    };
+  });
+}
+
+async function heatmapHoraDia(inicio: Date, fim: Date): Promise<CelulaHeatmap[]> {
+  const rows = await db
+    .select({
+      dia: sql<string>`EXTRACT(ISODOW FROM ${pedidos.dataPedido})::int`, // 1=seg .. 7=dom
+      hora: sql<string>`EXTRACT(HOUR FROM ${pedidos.dataPedido})::int`,
+      total: sql<string>`COALESCE(SUM(${pedidos.total}), 0)`,
+    })
+    .from(pedidos)
+    .where(and(gte(pedidos.dataPedido, inicio), lte(pedidos.dataPedido, fim), sql`${pedidos.status} = 'paid'`))
+    .groupBy(sql`EXTRACT(ISODOW FROM ${pedidos.dataPedido}), EXTRACT(HOUR FROM ${pedidos.dataPedido})`);
+
+  return rows.map((r) => ({
+    diaSemana: Number(r.dia) - 1, // ISO: 1=seg→0
+    hora: Number(r.hora),
+    valor: Number(r.total),
   }));
+}
+
+async function ultimosPedidos(inicio: Date, fim: Date) {
+  return db
+    .select({
+      id: pedidos.id,
+      numero: pedidos.numero,
+      cliente: pedidos.clienteNome,
+      total: pedidos.total,
+      status: pedidos.status,
+      meio: pedidos.meioPagamento,
+      data: pedidos.dataPedido,
+      lucro: pedidos.lucroLiquido,
+    })
+    .from(pedidos)
+    .where(and(gte(pedidos.dataPedido, inicio), lte(pedidos.dataPedido, fim)))
+    .orderBy(desc(pedidos.dataPedido))
+    .limit(8);
 }
 
 export default async function Dashboard({ searchParams }: { searchParams: Promise<{ periodo?: string; inicio?: string; fim?: string }> }) {
@@ -118,14 +165,24 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const atual = await dadosDoIntervalo(intervalo.inicio, intervalo.fim);
   const tamanho = differenceInDays(intervalo.fim, intervalo.inicio) + 1;
   const anterior = await dadosDoIntervalo(subDays(intervalo.inicio, tamanho), subDays(intervalo.fim, tamanho));
-  const linhaReceita = await receitaPorDia(intervalo.inicio, intervalo.fim);
+  const serieDias = await receitaPorDia(intervalo.inicio, intervalo.fim);
+  const heatmap = await heatmapHoraDia(intervalo.inicio, intervalo.fim);
+  const recentPedidos = await ultimosPedidos(intervalo.inicio, intervalo.fim);
 
   const lucroReal = atual.lucroPedidos - atual.fixos - atual.despesas;
   const margemReal = atual.receita > 0 ? (lucroReal / atual.receita) * 100 : 0;
   const lucroAnterior = anterior.lucroPedidos - anterior.fixos - anterior.despesas;
   const variacao = lucroAnterior !== 0 ? ((lucroReal - lucroAnterior) / Math.abs(lucroAnterior)) * 100 : 0;
+  const variacaoReceita = anterior.receita !== 0 ? ((atual.receita - anterior.receita) / anterior.receita) * 100 : 0;
   const ticketMedio = atual.qtd > 0 ? atual.receita / atual.qtd : 0;
-  const lucroPorPedido = atual.qtd > 0 ? lucroReal / atual.qtd : 0;
+  const ticketAnterior = anterior.qtd > 0 ? anterior.receita / anterior.qtd : 0;
+  const variacaoTicket = ticketAnterior !== 0 ? ((ticketMedio - ticketAnterior) / ticketAnterior) * 100 : 0;
+  const variacaoPedidos = anterior.qtd !== 0 ? ((atual.qtd - anterior.qtd) / anterior.qtd) * 100 : 0;
+
+  // sparkline data
+  const sparkReceita = serieDias.map((d) => d.receita);
+  const sparkLucro = serieDias.map((d) => d.lucro);
+  const sparkPedidos = serieDias.map((d) => d.qtd);
 
   const despesasBreakdown = [
     { label: 'Produtos (COGS)', valor: atual.cogs },
@@ -137,130 +194,188 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     { label: 'Despesas pontuais', valor: atual.despesas },
   ].filter((d) => d.valor > 0);
 
+  const totalSaidas = despesasBreakdown.reduce((s, d) => s + d.valor, 0);
+
+  const dadosBar = serieDias.map((d) => ({ label: d.labelCurto, valor: d.receita }));
+
   return (
-    <div className="max-w-[1400px] mx-auto space-y-12">
-      {/* Hero — eyebrow + headline gigante + valor animado */}
-      <section className="relative pt-4">
-        <div className="flex items-start justify-between mb-6">
+    <div className="px-8 lg:px-10 py-7 max-w-[1400px] mx-auto">
+      {/* TOP BAR */}
+      <header className="flex items-center justify-between mb-7">
+        <div className="flex items-center gap-3">
           <div>
-            <p className="text-eyebrow mb-3">
-              <SplitText text={`Dashboard · ${intervalo.label}`} />
-            </p>
+            <p className="text-eyebrow mb-0.5">Visão geral</p>
+            <h1 className="text-2xl font-bold tracking-tight text-[var(--color-ink)]">
+              Olá, Pietra <span className="inline-block animate-wave">👋</span>
+            </h1>
           </div>
-          <BotaoSincronizar />
         </div>
+        <BotaoSincronizar />
+      </header>
 
-        <h1 className="text-display text-platinum-grad mb-3">
-          <SplitChars text="LUCRO" delay={0.15} />
-        </h1>
-
-        <div className="flex items-end gap-6 flex-wrap">
-          <Reveal delay={0.5}>
-            <p className="font-display text-[clamp(3rem,9vw,7rem)] leading-[0.9] tabular text-[var(--color-pearl)]">
-              <AnimatedBRL value={lucroReal} />
-            </p>
-          </Reveal>
-
-          <Reveal delay={0.9} className="pb-3">
-            <div className="flex items-center gap-6">
-              <div>
-                <p className="text-eyebrow mb-0.5">Margem</p>
-                <p className="font-display text-3xl text-[var(--color-platinum)] tabular">
-                  <AnimatedCounter value={margemReal} decimals={1} suffix="%" />
-                </p>
-              </div>
-              {lucroAnterior !== 0 && (
-                <div className="flex items-center gap-2 text-sm">
-                  {variacao >= 0 ? (
-                    <TrendingUp className="w-4 h-4 text-[var(--color-gain)]" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4 text-[var(--color-loss)]" />
-                  )}
-                  <span className={variacao >= 0 ? 'text-[var(--color-gain)]' : 'text-[var(--color-loss)]'}>
-                    {Math.abs(variacao).toFixed(0)}%
-                  </span>
-                  <span className="text-[var(--color-steel)]">vs. anterior</span>
-                </div>
-              )}
-            </div>
-          </Reveal>
-        </div>
-      </section>
-
-      {/* Filtros de período */}
-      <Reveal delay={1.1}>
+      {/* PERIOD FILTER */}
+      <Reveal delay={0.05}>
         <FiltrosPeriodo periodo={periodo} inicioCustom={sp.inicio} fimCustom={sp.fim} />
       </Reveal>
 
-      {/* KPIs em grid */}
-      <RevealStagger delay={0.1} stagger={0.12} className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {/* HERO LUCRO REAL */}
+      <Reveal delay={0.15}>
+        <div className="card mt-5 relative overflow-hidden card-hover">
+          {/* decorative gradient corner */}
+          <div className="absolute -top-32 -right-32 w-72 h-72 rounded-full opacity-40 pointer-events-none"
+               style={{ background: 'radial-gradient(circle, rgba(245,224,228,0.8) 0%, transparent 70%)' }} />
+          <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+            <div>
+              <p className="text-eyebrow mb-2">Lucro líquido real · {intervalo.label}</p>
+              <div className="flex items-baseline gap-4 flex-wrap">
+                <p className="font-display text-[clamp(3.5rem,8vw,6rem)] leading-[0.85] tabular text-[var(--color-ink)]">
+                  <AnimatedBRL value={lucroReal} />
+                </p>
+                {lucroAnterior !== 0 && (
+                  <span className={`pill ${variacao >= 0 ? 'pill-gain' : 'pill-loss'}`}>
+                    {variacao >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+                    {Math.abs(variacao).toFixed(0)}% vs período anterior
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-[var(--color-ink-3)] mt-3">
+                Margem de <strong className="text-[var(--color-ink)]"><AnimatedCounter value={margemReal} decimals={1} suffix="%" /></strong> sobre R$ <AnimatedCounter value={atual.receita / 1000} decimals={1} suffix="k" /> de faturamento em <strong className="text-[var(--color-ink)]">{atual.qtd}</strong> pedido{atual.qtd !== 1 ? 's' : ''}.
+              </p>
+            </div>
+            <div className="lg:w-[380px]">
+              <Sparkline dados={sparkLucro} width={380} height={80} cor="#B25667" />
+              <div className="flex justify-between text-[10px] text-[var(--color-ink-4)] tracking-wider uppercase mt-1">
+                <span>{serieDias[0]?.label}</span>
+                <span>{serieDias[serieDias.length - 1]?.label}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Reveal>
+
+      {/* KPI ROW */}
+      <RevealStagger delay={0.05} stagger={0.08} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
         <RevealItem>
-          <KpiCard label="Faturamento" valor={<AnimatedBRL value={atual.receita} />} sub={`${atual.qtd} pedidos pagos`} accent />
+          <KpiCard
+            label="Faturamento"
+            valor={<AnimatedBRL value={atual.receita} />}
+            variacao={variacaoReceita}
+            spark={sparkReceita}
+            sparkColor="#0A0A0F"
+          />
         </RevealItem>
         <RevealItem>
-          <KpiCard label="Ticket médio" valor={<AnimatedBRL value={ticketMedio} />} sub="por pedido" />
+          <KpiCard
+            label="Ticket médio"
+            valor={<AnimatedBRL value={ticketMedio} />}
+            variacao={variacaoTicket}
+            spark={serieDias.map((d) => d.qtd > 0 ? d.receita / d.qtd : 0)}
+            sparkColor="#3A3A44"
+          />
         </RevealItem>
         <RevealItem>
-          <KpiCard label="Lucro por pedido" valor={<AnimatedBRL value={lucroPorPedido} />} sub="média líquida" />
+          <KpiCard
+            label="Pedidos pagos"
+            valor={<AnimatedCounter value={atual.qtd} />}
+            variacao={variacaoPedidos}
+            spark={sparkPedidos}
+            sparkColor="#B25667"
+            integerValor
+          />
         </RevealItem>
       </RevealStagger>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
-        {/* Line chart receita por dia */}
-        <div className="lg:col-span-3 card">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <p className="text-eyebrow mb-1.5">Performance</p>
-              <h2 className="font-display text-section text-[var(--color-pearl)]">Receita por dia</h2>
+      {/* CHARTS ROW */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
+        {/* Receita por dia — Bar chart */}
+        <Reveal delay={0.05} className="lg:col-span-3">
+          <div className="card h-full">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="text-eyebrow mb-1">Performance diária</p>
+                <h2 className="text-lg font-semibold text-[var(--color-ink)] tracking-tight">Receita por dia</h2>
+              </div>
+              <span className="pill"><Activity className="w-3 h-3" /> Tempo real</span>
             </div>
-            <Calendar className="w-4 h-4 text-[var(--color-steel)]" />
+            <BarChart dados={dadosBar} altura={300} />
           </div>
-          <LineChart dados={linhaReceita} altura={300} />
-        </div>
+        </Reveal>
 
-        {/* Donut despesas */}
-        <div className="lg:col-span-2 card">
-          <div className="mb-6">
-            <p className="text-eyebrow mb-1.5">Breakdown</p>
-            <h2 className="font-display text-section text-[var(--color-pearl)]">Pra onde foi</h2>
+        {/* Donut breakdown */}
+        <Reveal delay={0.1} className="lg:col-span-2">
+          <div className="card h-full">
+            <div className="mb-5">
+              <p className="text-eyebrow mb-1">Composição</p>
+              <h2 className="text-lg font-semibold text-[var(--color-ink)] tracking-tight">Pra onde foi o dinheiro</h2>
+            </div>
+            {despesasBreakdown.length > 0 ? (
+              <DonutChart
+                dados={despesasBreakdown}
+                tamanho={180}
+                centroLabel="Saída total"
+                centroValor={totalSaidas.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+              />
+            ) : (
+              <p className="text-sm text-[var(--color-ink-4)] text-center py-12">Sem despesas no período</p>
+            )}
           </div>
-          {despesasBreakdown.length > 0 ? (
-            <DonutChart
-              dados={despesasBreakdown}
-              tamanho={200}
-              centroLabel="Total saída"
-              centroValor={(despesasBreakdown.reduce((s, d) => s + d.valor, 0)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
-            />
-          ) : (
-            <p className="text-sm text-[var(--color-steel)] text-center py-10">Sem despesas no período</p>
-          )}
-        </div>
+        </Reveal>
       </div>
 
-      {/* Linha por linha — ledger */}
-      <Reveal>
-        <div className="card">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <p className="text-eyebrow mb-1.5">Ledger</p>
-              <h2 className="font-display text-section text-[var(--color-pearl)]">Da receita ao lucro</h2>
+      {/* HEATMAP + ULTIMOS PEDIDOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mt-4">
+        <Reveal delay={0.05} className="lg:col-span-3">
+          <div className="card h-full">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="text-eyebrow mb-1">Comportamento</p>
+                <h2 className="text-lg font-semibold text-[var(--color-ink)] tracking-tight">Quando suas clientes mais compram</h2>
+                <p className="text-xs text-[var(--color-ink-4)] mt-1">Distribuição de receita por dia da semana e faixa de hora</p>
+              </div>
             </div>
-            <p className="text-eyebrow tabular">{atual.dias} dia{atual.dias !== 1 ? 's' : ''}</p>
+            <HeatmapCalendar dados={heatmap} />
           </div>
+        </Reveal>
 
-          <div className="divide-y divide-[rgba(229,228,226,0.06)]">
-            <LedgerRow label="Faturamento bruto" valor={atual.receita} highlight />
-            <LedgerRow label="(–) Custo dos produtos (COGS)" valor={-atual.cogs} pct={pct(atual.cogs, atual.receita)} />
-            <LedgerRow label="(–) Gateway pagamento (MP / Nuvem Pago)" valor={-atual.taxaGw} pct={pct(atual.taxaGw, atual.receita)} />
-            <LedgerRow label="(–) Taxa Nuvemshop" valor={-atual.taxaNuvem} pct={pct(atual.taxaNuvem, atual.receita)} />
-            <LedgerRow label="(–) Frete absorvido" valor={-atual.frete} pct={pct(atual.frete, atual.receita)} />
-            <LedgerRow label="(–) Embalagem" valor={-atual.embalagem} pct={pct(atual.embalagem, atual.receita)} />
-            <LedgerRow label={`(–) Custos fixos do período`} valor={-atual.fixos} pct={pct(atual.fixos, atual.receita)} />
-            <LedgerRow label="(–) Despesas pontuais" valor={-atual.despesas} pct={pct(atual.despesas, atual.receita)} />
+        <Reveal delay={0.1} className="lg:col-span-2">
+          <div className="card h-full flex flex-col">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <p className="text-eyebrow mb-1">Recentes</p>
+                <h2 className="text-lg font-semibold text-[var(--color-ink)] tracking-tight">Últimos pedidos</h2>
+              </div>
+              <Link href="/painel/pedidos" className="pill hover:bg-[var(--color-surface-2)] transition-colors">
+                Ver todos
+                <ArrowUpRight className="w-3 h-3" />
+              </Link>
+            </div>
+            <RecentPedidos pedidos={recentPedidos.map((p) => ({ ...p, total: String(p.total) }))} />
           </div>
-          <div className="mt-6 pt-6 border-t border-[rgba(229,228,226,0.15)]">
-            <LedgerRow label="= LUCRO LÍQUIDO REAL" valor={lucroReal} destaque />
+        </Reveal>
+      </div>
+
+      {/* LEDGER */}
+      <Reveal delay={0.05}>
+        <div className="card mt-4">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-eyebrow mb-1">Ledger</p>
+              <h2 className="text-lg font-semibold text-[var(--color-ink)] tracking-tight">Da receita ao lucro real</h2>
+            </div>
+            <span className="pill">{atual.dias} dia{atual.dias !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="divide-y divide-[var(--color-line)]">
+            <LedgerRow label="Faturamento bruto" valor={atual.receita} accent />
+            <LedgerRow label="Custo dos produtos (COGS)" valor={-atual.cogs} pct={pct(atual.cogs, atual.receita)} />
+            <LedgerRow label="Gateway pagamento (MP / Nuvem Pago)" valor={-atual.taxaGw} pct={pct(atual.taxaGw, atual.receita)} />
+            <LedgerRow label="Taxa Nuvemshop" valor={-atual.taxaNuvem} pct={pct(atual.taxaNuvem, atual.receita)} />
+            <LedgerRow label="Frete absorvido" valor={-atual.frete} pct={pct(atual.frete, atual.receita)} />
+            <LedgerRow label="Embalagem" valor={-atual.embalagem} pct={pct(atual.embalagem, atual.receita)} />
+            <LedgerRow label={`Custos fixos do período`} valor={-atual.fixos} pct={pct(atual.fixos, atual.receita)} />
+            <LedgerRow label="Despesas pontuais" valor={-atual.despesas} pct={pct(atual.despesas, atual.receita)} />
+          </div>
+          <div className="mt-5 pt-5 border-t border-[var(--color-line-2)]">
+            <LedgerRow label="Lucro líquido real" valor={lucroReal} destaque />
           </div>
         </div>
       </Reveal>
@@ -283,19 +398,10 @@ function FiltrosPeriodo({ periodo, inicioCustom, fimCustom }: { periodo: Periodo
   ];
 
   return (
-    <div className="card flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+    <div className="card flex flex-col lg:flex-row gap-3 items-start lg:items-center" style={{ padding: '0.9rem 1.1rem' }}>
       <div className="flex flex-wrap gap-1.5">
         {opcoes.map((o) => (
-          <Link
-            key={o.v}
-            href={`/painel?periodo=${o.v}`}
-            className="px-4 py-2 rounded-full text-[12px] font-semibold tracking-wider uppercase transition-all"
-            style={{
-              background: periodo === o.v ? 'linear-gradient(180deg, #FAFAFA, #C0C0C0)' : 'transparent',
-              color: periodo === o.v ? 'var(--color-onyx)' : 'var(--color-steel)',
-              border: `1px solid ${periodo === o.v ? 'transparent' : 'rgba(229,228,226,0.12)'}`,
-            }}
-          >
+          <Link key={o.v} href={`/painel?periodo=${o.v}`} className={`pill ${periodo === o.v ? 'pill-active' : ''} hover:bg-[var(--color-surface-2)] transition-colors`}>
             {o.label}
           </Link>
         ))}
@@ -307,54 +413,80 @@ function FiltrosPeriodo({ periodo, inicioCustom, fimCustom }: { periodo: Periodo
           name="inicio"
           type="date"
           defaultValue={inicioCustom || ''}
-          className="input text-xs py-1.5 w-32 border-b border-[rgba(229,228,226,0.14)]"
+          className="input text-[11px] py-1.5 w-32"
           aria-label="Início"
         />
-        <span className="text-eyebrow">até</span>
+        <span className="text-[10px] text-[var(--color-ink-4)] uppercase tracking-wider">até</span>
         <input
           name="fim"
           type="date"
           defaultValue={fimCustom || ''}
-          className="input text-xs py-1.5 w-32 border-b border-[rgba(229,228,226,0.14)]"
+          className="input text-[11px] py-1.5 w-32"
           aria-label="Fim"
         />
-        <button type="submit" className="btn-ghost text-[10px] py-1.5 px-3">Aplicar</button>
+        <button type="submit" className="btn-ghost text-[11px] py-1.5 px-3">Aplicar</button>
       </form>
     </div>
   );
 }
 
-function KpiCard({ label, valor, sub, accent }: { label: string; valor: React.ReactNode; sub: string; accent?: boolean }) {
+function KpiCard({
+  label, valor, variacao, spark, sparkColor, integerValor,
+}: {
+  label: string;
+  valor: React.ReactNode;
+  variacao: number;
+  spark: number[];
+  sparkColor: string;
+  integerValor?: boolean;
+}) {
+  const hasVariacao = isFinite(variacao) && variacao !== 0;
+  const positiva = variacao >= 0;
   return (
-    <div className="card group h-full">
-      <p className="text-eyebrow mb-3">{label}</p>
-      <p className={`font-display text-[clamp(2.4rem,4vw,4rem)] leading-none tabular ${accent ? 'text-platinum-grad' : 'text-[var(--color-pearl)]'}`}>
+    <div className="card card-hover h-full">
+      <div className="flex items-start justify-between mb-4">
+        <p className="text-eyebrow">{label}</p>
+        {hasVariacao && (
+          <span className={`pill ${positiva ? 'pill-gain' : 'pill-loss'}`}>
+            {positiva ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+            {Math.abs(variacao).toFixed(0)}%
+          </span>
+        )}
+      </div>
+      <p className={`font-display tabular text-[var(--color-ink)] leading-none ${integerValor ? 'text-5xl' : 'text-[clamp(2rem,3.5vw,3rem)]'}`}>
         {valor}
       </p>
-      <p className="mt-3 text-xs text-[var(--color-steel)] tracking-wide">{sub}</p>
+      <div className="mt-4">
+        <Sparkline dados={spark} width={300} height={40} cor={sparkColor} />
+      </div>
     </div>
   );
 }
 
-function LedgerRow({ label, valor, pct, highlight, destaque }: { label: string; valor: number; pct?: number; highlight?: boolean; destaque?: boolean }) {
-  const cor = destaque
-    ? valor >= 0 ? 'text-[var(--color-gain)]' : 'text-[var(--color-loss)]'
-    : highlight
-    ? 'text-[var(--color-pearl)]'
-    : 'text-[var(--color-mist)]';
+function LedgerRow({ label, valor, pct, accent, destaque }: { label: string; valor: number; pct?: number; accent?: boolean; destaque?: boolean }) {
   return (
-    <div className="flex items-baseline justify-between py-3.5 gap-4">
-      <span className={`text-sm tracking-wide ${highlight ? 'text-[var(--color-pearl)] font-semibold' : 'text-[var(--color-mist)]'} ${destaque ? 'font-display text-xl tracking-wider uppercase' : ''}`}>
+    <div className="flex items-baseline justify-between py-3 gap-4">
+      <span className={`text-sm tracking-tight ${
+        destaque ? 'text-[var(--color-ink)] font-semibold text-base' :
+        accent ? 'text-[var(--color-ink)] font-medium' :
+        'text-[var(--color-ink-2)]'
+      }`}>
+        {accent && !destaque && '+ '}
+        {!accent && !destaque && '− '}
         {label}
       </span>
       <span className="flex items-baseline gap-3">
         {pct != null && pct > 0 && (
-          <span className="text-[10px] tabular text-[var(--color-iron)] tracking-wider">
+          <span className="text-[10px] tabular text-[var(--color-ink-4)] tracking-wider">
             {pct.toFixed(1)}%
           </span>
         )}
-        <span className={`tabular ${destaque ? 'font-display text-3xl tracking-wider' : 'font-display text-xl'} ${cor}`}>
-          {valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
+        <span className={`tabular font-display ${
+          destaque ? `text-2xl tracking-wide ${valor >= 0 ? 'text-[var(--color-gain)]' : 'text-[var(--color-loss)]'}` :
+          accent ? 'text-xl text-[var(--color-ink)]' :
+          'text-base text-[var(--color-ink-2)]'
+        }`}>
+          {Math.abs(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
         </span>
       </span>
     </div>

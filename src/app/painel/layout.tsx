@@ -12,11 +12,9 @@ export default async function PainelLayout({ children }: { children: React.React
   }
 
   return (
-    <div className="flex min-h-screen bg-[var(--color-onyx)] relative">
-      {/* Background grid global */}
-      <div className="fixed inset-0 grid-bg pointer-events-none opacity-50" style={{ maskImage: 'radial-gradient(ellipse at center, #000 0%, transparent 70%)' }} />
+    <div className="flex min-h-screen bg-[var(--color-canvas)]">
       <Sidebar sairAction={sair} />
-      <main className="flex-1 px-8 lg:px-12 py-10 overflow-x-auto relative z-10">{children}</main>
+      <main className="flex-1 overflow-x-auto">{children}</main>
     </div>
   );
 }

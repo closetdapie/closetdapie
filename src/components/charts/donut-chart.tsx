@@ -13,12 +13,12 @@ type Props = {
   centroValor?: string;
 };
 
-const PALETA_PRATA = ['#FAFAFA', '#E5E4E2', '#C0C0C0', '#8A8A8E', '#4A4A4F', '#2A2A2D', '#181818'];
+// Paleta sofisticada — preto, prata, blush, tons quentes
+const PALETA = ['#0A0A0F', '#3A3A44', '#6A6A75', '#B25667', '#E5BCC4', '#A0A0AB', '#CFCFD6'];
 
-// Donut chart minimalista — arcos animados, hover destacado
 export function DonutChart({
   dados,
-  tamanho = 280,
+  tamanho = 220,
   className = '',
   centroLabel,
   centroValor,
@@ -29,16 +29,16 @@ export function DonutChart({
   const total = dados.reduce((s, d) => s + Math.max(0, d.valor), 0);
   if (total === 0) {
     return (
-      <div className={`flex items-center justify-center text-[var(--color-steel)] text-sm ${className}`} style={{ height: tamanho }}>
-        Sem despesas no período
+      <div className={`flex items-center justify-center text-[var(--color-ink-4)] text-sm ${className}`} style={{ height: tamanho }}>
+        Sem dados no período
       </div>
     );
   }
 
   const cx = tamanho / 2;
   const cy = tamanho / 2;
-  const rOut = tamanho * 0.42;
-  const rIn = tamanho * 0.3;
+  const rOut = tamanho * 0.44;
+  const rIn = tamanho * 0.32;
   const cAngle = (deg: number) => (deg - 90) * (Math.PI / 180);
 
   let cumulado = 0;
@@ -60,7 +60,7 @@ export function DonutChart({
     const path = `M ${x1} ${y1} A ${rOut} ${rOut} 0 ${large} 1 ${x2} ${y2} L ${xi1} ${yi1} A ${rIn} ${rIn} 0 ${large} 0 ${xi2} ${yi2} Z`;
     return {
       path,
-      cor: d.cor || PALETA_PRATA[i % PALETA_PRATA.length],
+      cor: d.cor || PALETA[i % PALETA.length],
       label: d.label,
       valor: d.valor,
       pct: (d.valor / total) * 100,
@@ -68,58 +68,47 @@ export function DonutChart({
   });
 
   return (
-    <div className={`flex items-center gap-8 ${className}`}>
-      <svg ref={ref} width={tamanho} height={tamanho} viewBox={`0 0 ${tamanho} ${tamanho}`}>
-        <defs>
-          <filter id="donut-glow">
-            <feGaussianBlur stdDeviation="2" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
+    <div className={`flex flex-col md:flex-row items-center gap-6 ${className}`}>
+      <svg ref={ref} width={tamanho} height={tamanho} viewBox={`0 0 ${tamanho} ${tamanho}`} className="shrink-0">
         {segments.map((s, i) => (
           <motion.path
             key={i}
             d={s.path}
             fill={s.cor}
-            initial={{ opacity: 0, scale: 0.6 }}
+            initial={{ opacity: 0, scale: 0.5 }}
             animate={inView ? { opacity: 1, scale: 1 } : {}}
-            transition={{ duration: 0.7, delay: 0.1 + i * 0.1, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.6, delay: 0.1 + i * 0.08, ease: [0.16, 1, 0.3, 1] }}
             style={{ transformOrigin: `${cx}px ${cy}px` }}
           />
         ))}
-        {/* Texto centro */}
         {centroLabel && (
-          <text x={cx} y={cy - 8} fill="rgba(229,228,226,0.4)" fontSize="9" fontFamily="Montserrat, sans-serif" fontWeight="600" letterSpacing="0.22em" textAnchor="middle">
+          <text x={cx} y={cy - 6} fill="var(--color-ink-3)" fontSize="9" fontFamily="Inter, sans-serif" fontWeight="600" letterSpacing="0.18em" textAnchor="middle">
             {centroLabel.toUpperCase()}
           </text>
         )}
         {centroValor && (
-          <text x={cx} y={cy + 16} fill="#FAFAFA" fontSize="22" fontFamily="Bebas Neue, sans-serif" letterSpacing="0.02em" textAnchor="middle">
+          <text x={cx} y={cy + 16} fill="var(--color-ink)" fontSize="22" fontFamily="Bebas Neue, sans-serif" letterSpacing="0.02em" textAnchor="middle">
             {centroValor}
           </text>
         )}
       </svg>
 
-      {/* Legenda */}
-      <div className="flex-1 space-y-2.5">
+      <div className="flex-1 w-full space-y-2.5">
         {segments.map((s, i) => (
           <motion.div
             key={i}
-            initial={{ opacity: 0, x: -10 }}
+            initial={{ opacity: 0, x: -8 }}
             animate={inView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.5, delay: 0.6 + i * 0.06, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.45, delay: 0.5 + i * 0.05, ease: [0.16, 1, 0.3, 1] }}
             className="flex items-center justify-between gap-3 text-sm"
           >
             <div className="flex items-center gap-2.5 min-w-0">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.cor }} />
-              <span className="text-[var(--color-mist)] truncate">{s.label}</span>
+              <span className="text-[var(--color-ink-2)] truncate">{s.label}</span>
             </div>
             <div className="flex items-center gap-3 shrink-0 tabular">
-              <span className="text-[var(--color-steel)] text-xs">{s.pct.toFixed(1)}%</span>
-              <span className="font-display text-[15px] text-[var(--color-pearl)]" style={{ letterSpacing: '0.02em' }}>
+              <span className="text-[var(--color-ink-4)] text-xs">{s.pct.toFixed(1)}%</span>
+              <span className="font-display text-[15px] text-[var(--color-ink)]" style={{ letterSpacing: '0.02em' }}>
                 {s.valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })}
               </span>
             </div>
